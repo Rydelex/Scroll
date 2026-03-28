@@ -13,15 +13,6 @@ export function activate(context: vscode.ExtensionContext) {
 	const calibrationOffset: Map<vscode.ViewColumn, number> = new Map()
 	const isCalibrating: Set<vscode.ViewColumn> = new Set()
 	const pendingCalibration: Map<vscode.ViewColumn, number> = new Map()
-	const initOffsetMode = () => {
-		const editors = vscode.window.visibleTextEditors
-			.filter(e => e.viewColumn !== undefined && e.document.uri.scheme !== 'output')
-		if (editors.length < 2) return
-		const source = editors[0]
-		editors.slice(1).forEach(editor => {
-			offsetByEditors.set(editor.viewColumn!, editor.visibleRanges[0].start.line - source.visibleRanges[0].start.line)
-		})
-	}
 	const reset = () => {
 		offsetByEditors.clear()
 		calibrationOffset.clear()
@@ -40,7 +31,6 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		modeState.registerCommand(() => {
 			reset()
-			if (modeState.isOffsetMode()) initOffsetMode()
 		}),
 		vscode.commands.registerTextEditorCommand('syncScroll.jumpToNextPanelCorrespondingPosition', (textEditor) => {
 			const selection = textEditor.selection
@@ -73,7 +63,6 @@ export function activate(context: vscode.ExtensionContext) {
 					var tempState: MODE = previousState
 					previousState = MODE.OFF
 					modeState.setMode(tempState)
-					if (modeState.isOffsetMode()) initOffsetMode()
 				} else {
 					previousState = MODE.OFF
 					modeState.setMode(MODE.NORMAL)
@@ -167,19 +156,25 @@ export function activate(context: vscode.ExtensionContext) {
 					const settleTargets = vscode.window.visibleTextEditors
 						.filter(e => e !== settleSource && e.viewColumn !== undefined && e.document.uri.scheme !== 'output')
 
+					console.log(`[SyncScroll-SETTLE] FIRED | source=col${settleSource.viewColumn} line=${settleSourceLine}`)
+
 					for (const target of settleTargets) {
 						if (!calibrationOffset.has(target.viewColumn!)) continue
 						const userOffset = modeState.isOffsetMode() ? (offsetByEditors.get(target.viewColumn!) ?? 0) : 0
 						const expectedLine = Math.max(0, settleSourceLine + userOffset)
 						const targetCurrentLine = target.visibleRanges[0]?.start.line ?? 0
 						const gap = targetCurrentLine - expectedLine
-						if (gap !== 0) {
+						const correcting = gap !== 0
+						console.log(`[SyncScroll-SETTLE] target=col${target.viewColumn} | actual=${targetCurrentLine} | expected=${expectedLine} | gap=${gap} | correcting=${correcting}`)
+						if (correcting) {
+							console.log(`[SyncScroll-SETTLE] calibOffset=${calibrationOffset.get(target.viewColumn!)} for col${target.viewColumn}`)
 							const compensated = Math.max(0, expectedLine + (calibrationOffset.get(target.viewColumn!) ?? 0))
 							scrolledEditorsQueue.add(target.viewColumn!)
 							target.revealRange(
 								new vscode.Range(compensated, 0, compensated, 0),
 								vscode.TextEditorRevealType.AtTop
 							)
+							console.log(`[SyncScroll-SETTLE] CORRECTED target=col${target.viewColumn} → line=${compensated}`)
 						}
 					}
 				}, 100)
