@@ -11,7 +11,7 @@ This extension supports sync scrolling between split panels in different modes:
 
 You can change the mode of Sync Scroll in the status bar below when VSCode opens split panels.
 
-NOTE: the default mode is **OFF**, plesae select your desired mode after you firstly install it and open split panels.
+NOTE: the default mode is **OFF**, please select your desired mode after you firstly install it and open split panels.
 
 ![Sync scroll features](./feature.gif)
 
