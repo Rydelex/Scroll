@@ -69,14 +69,20 @@ export function activate(context: vscode.ExtensionContext) {
 			reset()
 		}),
 		vscode.window.onDidChangeTextEditorVisibleRanges(({ textEditor, visibleRanges }) => {
+			const _edId = `col${textEditor.viewColumn}`
+			const _qIds = [...scrolledEditorsQueue].map(e => `col${e.viewColumn}`).join(',') || 'empty'
+			const _scId = scrollingEditor ? `col${scrollingEditor.viewColumn}` : 'none'
+			console.log(`[SyncScroll] EVENT ${_edId} | vr=${visibleRanges[0]?.start.line}-${visibleRanges[0]?.end.line} | scrollingEd=${_scId} | queue=[${_qIds}]`)
 			if (!AllStates.areVisible || modeState.isOff() || textEditor.viewColumn === undefined || textEditor.document.uri.scheme === 'output') {
 				return
 			}
 			if (scrollingEditor !== textEditor) {
 				if (scrolledEditorsQueue.has(textEditor)) {
 					scrolledEditorsQueue.delete(textEditor)
+					console.log(`[SyncScroll] BLOCKED ${_edId} (was in queue) → early return`)
 					return
 				}
+				console.log(`[SyncScroll] PASSED ${_edId} → new scrollingEditor (was ${_scId})`)
 				scrollingEditor = textEditor
 				if (modeState.isOffsetMode()) {
 					vscode.window.visibleTextEditors
@@ -95,11 +101,12 @@ export function activate(context: vscode.ExtensionContext) {
 				vscode.window.visibleTextEditors
 					.filter(editor => editor !== textEditor && editor.document.uri.scheme !== 'output')
 					.forEach(scrolledEditor => {
+						const _tgtId = `col${scrolledEditor.viewColumn}`
+						const _offset = offsetByEditors.get(scrolledEditor)
+						const _range = calculateRange(visibleRanges[0], _offset, textEditor, scrolledEditor)
+						console.log(`[SyncScroll] REVEAL ${_edId}→${_tgtId} | offset=${_offset ?? 'undef(→0)'} | range=${_range.start.line}-${_range.end.line} | revealType=AtTop`)
 						scrolledEditorsQueue.add(scrolledEditor)
-						scrolledEditor.revealRange(
-							calculateRange(visibleRanges[0], offsetByEditors.get(scrolledEditor), textEditor, scrolledEditor),
-							vscode.TextEditorRevealType.AtTop,
-						)
+						scrolledEditor.revealRange(_range, vscode.TextEditorRevealType.AtTop)
 					})
 			}, 0)
 		}),
