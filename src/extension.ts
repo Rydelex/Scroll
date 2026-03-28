@@ -130,7 +130,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 					scrolledEditorsQueue.add(target)
 					await vscode.window.showTextDocument(target.document, { viewColumn: target.viewColumn, preserveFocus: false })
-					await vscode.commands.executeCommand('editorScroll', {
+					vscode.commands.executeCommand('editorScroll', {
 						to: delta > 0 ? 'down' : 'up',
 						by: 'line',
 						value: Math.abs(delta)
@@ -148,7 +148,7 @@ export function activate(context: vscode.ExtensionContext) {
 				if (didScroll) {
 					await vscode.window.showTextDocument(source.document, { viewColumn: source.viewColumn, preserveFocus: false })
 				}
-			}, 0)
+			}, 16)
 		}),
 		vscode.window.onDidChangeTextEditorSelection(({ selections, textEditor }) => {
 			if (!AllStates.areVisible || modeState.isOff() || textEditor.viewColumn === undefined || textEditor.document.uri.scheme === 'output') {
