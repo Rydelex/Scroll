@@ -35,6 +35,18 @@
 			},{
 				"command": "syncScroll.toggle",
 				"title": "Toggle Sync Scroll"
+			},{
+				"command": "syncScroll.testEditorScroll",
+				"title": "[TEST] SyncScroll: editorScroll delta"
+			},{
+				"command": "syncScroll.testRevealLine",
+				"title": "[TEST] SyncScroll: revealLine top"
+			},{
+				"command": "syncScroll.testRevealCenter",
+				"title": "[TEST] SyncScroll: revealRange InCenter"
+			},{
+				"command": "syncScroll.testRevealAtTopSingleLine",
+				"title": "[TEST] SyncScroll: revealRange AtTop single line"
 			}
 		],
 		"menus": {
