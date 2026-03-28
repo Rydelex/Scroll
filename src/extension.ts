@@ -5,14 +5,14 @@ import { MODE, ModeState, AllStates } from './states'
 export function activate(context: vscode.ExtensionContext) {
 	let scrollingTask: NodeJS.Timeout
 	let settleTask: NodeJS.Timeout
-	let scrollingEditor: vscode.TextEditor | null
+	let scrollingEditor: vscode.ViewColumn | null
 	let correspondingLinesHighlight: vscode.TextEditorDecorationType | undefined
 	let previousState: MODE = MODE.OFF
-	const scrolledEditorsQueue: Set<vscode.TextEditor> = new Set()
-	const offsetByEditors: Map<vscode.TextEditor, number> = new Map()
-	const calibrationOffset: Map<vscode.TextEditor, number> = new Map()
-	const isCalibrating: Set<vscode.TextEditor> = new Set()
-	const pendingCalibration: Map<vscode.TextEditor, number> = new Map()
+	const scrolledEditorsQueue: Set<vscode.ViewColumn> = new Set()
+	const offsetByEditors: Map<vscode.ViewColumn, number> = new Map()
+	const calibrationOffset: Map<vscode.ViewColumn, number> = new Map()
+	const isCalibrating: Set<vscode.ViewColumn> = new Set()
+	const pendingCalibration: Map<vscode.ViewColumn, number> = new Map()
 	const reset = () => {
 		offsetByEditors.clear()
 		calibrationOffset.clear()
@@ -37,7 +37,7 @@ export function activate(context: vscode.ExtensionContext) {
 			const textEditors = vscode.window.visibleTextEditors
 			.filter(editor => editor !== textEditor && editor.document.uri.scheme !== 'output')
 			const nextTextEditor = textEditors[(textEditors.indexOf(textEditor) + 1) % textEditors.length]
-			const offset = offsetByEditors.get(nextTextEditor)
+			const offset = offsetByEditors.get(nextTextEditor.viewColumn!)
 			const correspondingStartPosition = calculatePosition(selection.start, offset, textEditor, nextTextEditor)
 			const correspondingPosition = new vscode.Range(correspondingStartPosition, correspondingStartPosition)
 			const correspondingRange = calculateRange(selection, offset)
@@ -53,7 +53,7 @@ export function activate(context: vscode.ExtensionContext) {
 					scrolledEditor.edit(editBuilder =>
 						textEditor.selections.map(selection =>
 							editBuilder.replace(
-								calculateRange(selection, offsetByEditors.get(scrolledEditor)),
+								calculateRange(selection, offsetByEditors.get(scrolledEditor.viewColumn!)),
 								textEditor.document.getText(selection.isEmpty ? wholeLine(selection) : selection) + '\n')))
 				})
 		}),
@@ -80,16 +80,16 @@ export function activate(context: vscode.ExtensionContext) {
 			if (!AllStates.areVisible || modeState.isOff() || textEditor.viewColumn === undefined || textEditor.document.uri.scheme === 'output') {
 				return
 			}
-			if (isCalibrating.has(textEditor)) {
-				const requestedLine = pendingCalibration.get(textEditor)!
+			if (isCalibrating.has(textEditor.viewColumn!)) {
+				const requestedLine = pendingCalibration.get(textEditor.viewColumn!)!
 				const actualLine = textEditor.visibleRanges[0]?.start.line ?? 0
 				const offset = requestedLine - actualLine
-				calibrationOffset.set(textEditor, offset)
-				isCalibrating.delete(textEditor)
-				pendingCalibration.delete(textEditor)
+				calibrationOffset.set(textEditor.viewColumn!, offset)
+				isCalibrating.delete(textEditor.viewColumn!)
+				pendingCalibration.delete(textEditor.viewColumn!)
 				if (offset !== 0) {
 					const correctedLine = Math.max(0, requestedLine + offset)
-					scrolledEditorsQueue.add(textEditor)
+					scrolledEditorsQueue.add(textEditor.viewColumn!)
 					textEditor.revealRange(
 						new vscode.Range(correctedLine, 0, correctedLine, 0),
 						vscode.TextEditorRevealType.AtTop
@@ -97,17 +97,17 @@ export function activate(context: vscode.ExtensionContext) {
 				}
 				return
 			}
-			if (scrollingEditor !== textEditor) {
-				if (scrolledEditorsQueue.has(textEditor)) {
-					scrolledEditorsQueue.delete(textEditor)
+			if (scrollingEditor !== textEditor.viewColumn) {
+				if (scrolledEditorsQueue.has(textEditor.viewColumn!)) {
+					scrolledEditorsQueue.delete(textEditor.viewColumn!)
 					return
 				}
-				scrollingEditor = textEditor
+				scrollingEditor = textEditor.viewColumn!
 				if (modeState.isOffsetMode()) {
 					vscode.window.visibleTextEditors
 						.filter(editor => editor !== textEditor && editor.document.uri.scheme !== 'output')
 						.forEach(scrolledEditor => {
-							offsetByEditors.set(scrolledEditor, scrolledEditor.visibleRanges[0].start.line - textEditor.visibleRanges[0].start.line)
+							offsetByEditors.set(scrolledEditor.viewColumn!, scrolledEditor.visibleRanges[0].start.line - textEditor.visibleRanges[0].start.line)
 						})
 				} else if (modeState.isNormalMode()) {
 					offsetByEditors.clear()
@@ -126,23 +126,23 @@ export function activate(context: vscode.ExtensionContext) {
 				if (targets.length === 0) return
 
 				for (const target of targets) {
-					const userOffset = modeState.isOffsetMode() ? (offsetByEditors.get(target) ?? 0) : 0
+					const userOffset = modeState.isOffsetMode() ? (offsetByEditors.get(target.viewColumn!) ?? 0) : 0
 					const requestedLine = Math.max(0, sourceCurrentLine + userOffset)
 
-					if (!calibrationOffset.has(target)) {
-						if (isCalibrating.has(target)) {
+					if (!calibrationOffset.has(target.viewColumn!)) {
+						if (isCalibrating.has(target.viewColumn!)) {
 							// Rapid scroll during pending calibration: skip to avoid overwriting pendingCalibration
 							continue
 						}
-						isCalibrating.add(target)
-						pendingCalibration.set(target, requestedLine)
+						isCalibrating.add(target.viewColumn!)
+						pendingCalibration.set(target.viewColumn!, requestedLine)
 						target.revealRange(
 							new vscode.Range(requestedLine, 0, requestedLine, 0),
 							vscode.TextEditorRevealType.AtTop
 						)
 					} else {
-						const compensated = Math.max(0, requestedLine + (calibrationOffset.get(target) ?? 0))
-						scrolledEditorsQueue.add(target)
+						const compensated = Math.max(0, requestedLine + (calibrationOffset.get(target.viewColumn!) ?? 0))
+						scrolledEditorsQueue.add(target.viewColumn!)
 						target.revealRange(
 							new vscode.Range(compensated, 0, compensated, 0),
 							vscode.TextEditorRevealType.AtTop
@@ -159,16 +159,17 @@ export function activate(context: vscode.ExtensionContext) {
 					console.log(`[SyncScroll-SETTLE] FIRED | source=col${settleSource.viewColumn} line=${settleSourceLine}`)
 
 					for (const target of settleTargets) {
-						if (!calibrationOffset.has(target)) continue
-						const userOffset = modeState.isOffsetMode() ? (offsetByEditors.get(target) ?? 0) : 0
+						if (!calibrationOffset.has(target.viewColumn!)) continue
+						const userOffset = modeState.isOffsetMode() ? (offsetByEditors.get(target.viewColumn!) ?? 0) : 0
 						const expectedLine = Math.max(0, settleSourceLine + userOffset)
 						const targetCurrentLine = target.visibleRanges[0]?.start.line ?? 0
 						const gap = targetCurrentLine - expectedLine
 						const correcting = gap !== 0
 						console.log(`[SyncScroll-SETTLE] target=col${target.viewColumn} | actual=${targetCurrentLine} | expected=${expectedLine} | gap=${gap} | correcting=${correcting}`)
 						if (correcting) {
-							const compensated = Math.max(0, expectedLine + (calibrationOffset.get(target) ?? 0))
-							scrolledEditorsQueue.add(target)
+							console.log(`[SyncScroll-SETTLE] calibOffset=${calibrationOffset.get(target.viewColumn!)} for col${target.viewColumn}`)
+							const compensated = Math.max(0, expectedLine + (calibrationOffset.get(target.viewColumn!) ?? 0))
+							scrolledEditorsQueue.add(target.viewColumn!)
 							target.revealRange(
 								new vscode.Range(compensated, 0, compensated, 0),
 								vscode.TextEditorRevealType.AtTop
@@ -190,7 +191,7 @@ export function activate(context: vscode.ExtensionContext) {
 				.forEach((scrolledEditor) => {
 					scrolledEditor.setDecorations(
 						correspondingLinesHighlight!,
-						selections.map(selection => calculateRange(selection, offsetByEditors.get(scrolledEditor))),
+						selections.map(selection => calculateRange(selection, offsetByEditors.get(scrolledEditor.viewColumn!))),
 					)
 				})
 		})
