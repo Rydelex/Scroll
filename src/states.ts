@@ -3,7 +3,6 @@ const [changeModeCommand] = require('../package.json').contributes.commands
 
 export enum MODE {
     NORMAL = 'NORMAL',
-    OFFSET = 'OFFSET',
     OFF = 'OFF'
 }
 
@@ -53,9 +52,6 @@ export class ModeState extends State<MODE> {
                 label: MODE.NORMAL,
                 description: 'Sync scroll to the same line',
             },{
-                label: MODE.OFFSET,
-                description: 'Sync scroll with the same scrolling distance',
-            },{
                 label: MODE.OFF,
                 description: 'Turn off sync scroll',
             }],
@@ -72,7 +68,6 @@ export class ModeState extends State<MODE> {
     public constructor(context: vscode.ExtensionContext) {
         super(context, 200, changeModeCommand)
     }
-    public isOffsetMode = () => this.get() === MODE.OFFSET
     public isNormalMode = () => this.get() === MODE.NORMAL
     public isOff = () => this.get() === MODE.OFF
 }

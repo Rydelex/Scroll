@@ -7,7 +7,6 @@ A Visual Studio Code extension that makes sync scrolling editing easier.
 This extension supports sync scrolling between split panels in different modes:
 
 - **NORMAL**: Sync scroll to the same line
-- **OFFSET**: Sync scroll with the same scrolling distance
 - **OFF**: Turn off sync scroll
 
 You can change the mode of Sync Scroll in the status bar below when VSCode opens split panels.
@@ -26,11 +25,24 @@ Additionally, there are two commands help your cross editing in the right-click 
 
 ## Release Notes
 
+### 1.4.0
+
+Fixes:
+
+- Fixed ~5 line scroll desynchronization in NORMAL mode. Root cause: VS Code's `revealRange(AtTop)` adds internal padding (~5 lines). Fix: post-scroll "settle" mechanism (100ms) that measures actual gap and corrects via compensated `revealRange`.
+- Fixed sync activation bug requiring multiple panel clicks before sync starts. Root cause: `scrolledEditorsQueue` retained stale entries after settle correction, silently dropping subsequent user scroll events.
+
+Changes:
+
+- Removed OFFSET mode (unused, non-functional). Only NORMAL and OFF modes remain.
+- Removed dead calibration system (calibrationOffset always measured 0, superseded by settle correction).
+- General code cleanup: removed diagnostic logs, dead code, and unused branches.
+
 ### 1.3.1
 
 Enhancement:
 
-- Simplified the on/off and mode interaction into one menu with three modes: NORMAL, OFFSET and OFF.
+- Simplified the on/off and mode interaction into one menu with two modes: NORMAL and OFF.
 - By default mode is OFF.
 
 ### 1.3.0
@@ -67,7 +79,6 @@ Add features:
 
 - Now you can choose a sync mode when it turns on:
   - NORMAL - aligned by the top of the view range.
-  - OFFSET - aligned by the scrolled lines offset.
 
 Enhancement:
 
