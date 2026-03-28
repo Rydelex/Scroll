@@ -13,25 +13,12 @@ export const calculatePosition = (position: vscode.Position, offset: number = 0,
 		position.line + offset,
 		calculateCharacterNumber(position, offset, scrollingEditor, scrolledEditor))
 
-export const calculateRange = (range: vscode.Range, offset: number = 0, scrollingEditor?: vscode.TextEditor, scrolledEditor?: vscode.TextEditor): vscode.Range => {
-	const start = calculatePosition(range.start, offset, scrollingEditor, scrolledEditor)
-	const end = new vscode.Position(range.end.line + offset + 1, 0)
-	const result = new vscode.Range(start, end)
-	console.log(`[SyncScroll] calculateRange | in: start=${range.start.line} end=${range.end.line} offset=${offset} | out: start=${result.start.line} end=${result.end.line}`)
-	return result
-}
+export const calculateRange = (range: vscode.Range, offset: number = 0, scrollingEditor?: vscode.TextEditor, scrolledEditor?: vscode.TextEditor): vscode.Range =>
+	new vscode.Range(
+		calculatePosition(range.start, offset, scrollingEditor, scrolledEditor),
+		new vscode.Position(range.end.line + offset + 1, 0))
 
 export const wholeLine = (selection: vscode.Selection): vscode.Range =>
 	selection.with(selection.start.with({ character: 0 }), selection.end.with({ character: Infinity }))
 
 export const checkSplitPanels = (textEditors: vscode.TextEditor[] = vscode.window.visibleTextEditors): boolean => textEditors.length > 1
-
-export const updateOffsetByEditors = (offsetByEditors: Map<vscode.TextEditor, number>, scrollingEditor: vscode.TextEditor | undefined = vscode.window.activeTextEditor) => {
-	if (scrollingEditor) {
-		vscode.window.visibleTextEditors
-		.filter(editor => editor !== scrollingEditor)
-		.forEach(scrolledEditor => {
-			offsetByEditors.set(scrolledEditor, scrolledEditor.visibleRanges[0].start.line - scrollingEditor.visibleRanges[0].start.line)
-		})	
-	}
-}
