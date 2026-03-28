@@ -193,6 +193,39 @@ export function activate(context: vscode.ExtensionContext) {
 				console.log(`[SyncScroll-TEST] revealAtTopSingleLine | before=${before} target=${target} | after=${after} | offset_from_target=${after - target}`)
 			}, 50)
 		}),
+		vscode.commands.registerCommand('syncScroll.testEditorScrollNoFocus', async () => {
+			const editors = vscode.window.visibleTextEditors
+				.filter(e => e.viewColumn !== undefined && e.document.uri.scheme !== 'output')
+				.sort((a, b) => (a.viewColumn ?? 0) - (b.viewColumn ?? 0))
+			if (editors.length < 2) { vscode.window.showWarningMessage('[SyncScroll-TEST] Need at least 2 split editors'); return }
+			const [col1, col2] = editors
+
+			// Sub-test 1: NO FOCUS — col1 stays active, editorScroll fired without switching focus
+			const before1 = col2.visibleRanges[0]?.start.line ?? 0
+			const col1Before1 = col1.visibleRanges[0]?.start.line ?? 0
+			console.log(`[SyncScroll-TEST] editorScroll NO FOCUS | col1=${col1Before1} col2.before=${before1} | firing editorScroll down 5 (col1 stays active)`)
+			await vscode.commands.executeCommand('editorScroll', { to: 'down', by: 'line', value: 5 })
+			setTimeout(() => {
+				const col2After1 = col2.visibleRanges[0]?.start.line ?? -1
+				const col1After1 = col1.visibleRanges[0]?.start.line ?? -1
+				console.log(`[SyncScroll-TEST] editorScroll NO FOCUS | col1.moved=${col1After1 - col1Before1} col2.moved=${col2After1 - before1} | expected=5 on active editor`)
+			}, 50)
+
+			// Sub-test 2: WITH FOCUS — focus col2, scroll, refocus col1
+			setTimeout(async () => {
+				const before2 = col2.visibleRanges[0]?.start.line ?? 0
+				const col1Before2 = col1.visibleRanges[0]?.start.line ?? 0
+				console.log(`[SyncScroll-TEST] editorScroll WITH FOCUS | col1=${col1Before2} col2.before=${before2} | focusing col2...`)
+				await vscode.window.showTextDocument(col2.document, { viewColumn: col2.viewColumn, preserveFocus: false })
+				await vscode.commands.executeCommand('editorScroll', { to: 'down', by: 'line', value: 5 })
+				await vscode.window.showTextDocument(col1.document, { viewColumn: col1.viewColumn, preserveFocus: false })
+				setTimeout(() => {
+					const col2After2 = col2.visibleRanges[0]?.start.line ?? -1
+					const col1After2 = col1.visibleRanges[0]?.start.line ?? -1
+					console.log(`[SyncScroll-TEST] editorScroll WITH FOCUS | col1.moved=${col1After2 - col1Before2} col2.moved=${col2After2 - before2} | expected=5 on col2`)
+				}, 50)
+			}, 200)
+		}),
 		// ── END DIAGNOSTIC TEST COMMANDS ─────────────────────────────────────────
 	)
 

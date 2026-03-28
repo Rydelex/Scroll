@@ -47,6 +47,9 @@
 			},{
 				"command": "syncScroll.testRevealAtTopSingleLine",
 				"title": "[TEST] SyncScroll: revealRange AtTop single line"
+			},{
+				"command": "syncScroll.testEditorScrollNoFocus",
+				"title": "[TEST] SyncScroll: editorScroll focus test"
 			}
 		],
 		"menus": {
