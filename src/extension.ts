@@ -168,7 +168,7 @@ export function activate(context: vscode.ExtensionContext) {
 						console.log(`[SyncScroll-SETTLE] target=col${target.viewColumn} | actual=${targetCurrentLine} | expected=${expectedLine} | gap=${gap} | correcting=${correcting}`)
 						if (correcting) {
 							console.log(`[SyncScroll-SETTLE] calibOffset=${calibrationOffset.get(target.viewColumn!)} for col${target.viewColumn}`)
-							const compensated = Math.max(0, expectedLine + (calibrationOffset.get(target.viewColumn!) ?? 0))
+							const compensated = Math.max(0, expectedLine - gap)
 							scrolledEditorsQueue.add(target.viewColumn!)
 							target.revealRange(
 								new vscode.Range(compensated, 0, compensated, 0),
