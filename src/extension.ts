@@ -146,7 +146,7 @@ export function activate(context: vscode.ExtensionContext) {
 						)
 					}
 				}
-			}, 16)
+			}, 0)
 		}),
 		vscode.window.onDidChangeTextEditorSelection(({ selections, textEditor }) => {
 			if (!AllStates.areVisible || modeState.isOff() || textEditor.viewColumn === undefined || textEditor.document.uri.scheme === 'output') {
