@@ -184,6 +184,7 @@ export function activate(context: vscode.ExtensionContext) {
 							console.log(`[SyncScroll-SETTLE] CORRECTED target=col${target.viewColumn} → line=${compensated}`)
 						}
 					}
+					scrolledEditorsQueue.clear()
 				}, 100)
 			}, 0)
 		}),
