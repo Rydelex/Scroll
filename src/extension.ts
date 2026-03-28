@@ -124,7 +124,76 @@ export function activate(context: vscode.ExtensionContext) {
 						selections.map(selection => calculateRange(selection, offsetByEditors.get(scrolledEditor))),
 					)
 				})
-		})
+		}),
+
+		// ── DIAGNOSTIC TEST COMMANDS (temporary) ─────────────────────────────────
+		vscode.commands.registerCommand('syncScroll.testEditorScroll', async () => {
+			const editors = vscode.window.visibleTextEditors
+				.filter(e => e.viewColumn !== undefined && e.document.uri.scheme !== 'output')
+				.sort((a, b) => (a.viewColumn ?? 0) - (b.viewColumn ?? 0))
+			if (editors.length < 2) { vscode.window.showWarningMessage('[SyncScroll-TEST] Need at least 2 split editors'); return }
+			const [col1, col2] = editors
+			const target = col1.visibleRanges[0]?.start.line ?? 0
+			const before = col2.visibleRanges[0]?.start.line ?? 0
+			const delta = target - before
+			console.log(`[SyncScroll-TEST] editorScroll | before=${before} target=${target} delta=${delta}`)
+			if (delta === 0) { console.log(`[SyncScroll-TEST] editorScroll | delta=0, nothing to do`); return }
+			await vscode.window.showTextDocument(col2.document, { viewColumn: col2.viewColumn, preserveFocus: false })
+			await vscode.commands.executeCommand('editorScroll', { to: delta > 0 ? 'down' : 'up', by: 'line', value: Math.abs(delta) })
+			setTimeout(() => {
+				const after = col2.visibleRanges[0]?.start.line ?? -1
+				console.log(`[SyncScroll-TEST] editorScroll | before=${before} target=${target} | after=${after} | offset_from_target=${after - target}`)
+			}, 50)
+		}),
+		vscode.commands.registerCommand('syncScroll.testRevealLine', async () => {
+			const editors = vscode.window.visibleTextEditors
+				.filter(e => e.viewColumn !== undefined && e.document.uri.scheme !== 'output')
+				.sort((a, b) => (a.viewColumn ?? 0) - (b.viewColumn ?? 0))
+			if (editors.length < 2) { vscode.window.showWarningMessage('[SyncScroll-TEST] Need at least 2 split editors'); return }
+			const [col1, col2] = editors
+			const target = col1.visibleRanges[0]?.start.line ?? 0
+			const before = col2.visibleRanges[0]?.start.line ?? 0
+			console.log(`[SyncScroll-TEST] revealLine | before=${before} target=${target}`)
+			await vscode.window.showTextDocument(col2.document, { viewColumn: col2.viewColumn, preserveFocus: false })
+			await vscode.commands.executeCommand('revealLine', { lineNumber: target, at: 'top' })
+			setTimeout(() => {
+				const after = col2.visibleRanges[0]?.start.line ?? -1
+				console.log(`[SyncScroll-TEST] revealLine | before=${before} target=${target} | after=${after} | offset_from_target=${after - target}`)
+			}, 50)
+		}),
+		vscode.commands.registerCommand('syncScroll.testRevealCenter', () => {
+			const editors = vscode.window.visibleTextEditors
+				.filter(e => e.viewColumn !== undefined && e.document.uri.scheme !== 'output')
+				.sort((a, b) => (a.viewColumn ?? 0) - (b.viewColumn ?? 0))
+			if (editors.length < 2) { vscode.window.showWarningMessage('[SyncScroll-TEST] Need at least 2 split editors'); return }
+			const [col1, col2] = editors
+			const target = col1.visibleRanges[0]?.start.line ?? 0
+			const before = col2.visibleRanges[0]?.start.line ?? 0
+			const viewportHeight = (col2.visibleRanges[0]?.end.line ?? 0) - (col2.visibleRanges[0]?.start.line ?? 0)
+			const expectedTop = target - Math.floor(viewportHeight / 2)
+			console.log(`[SyncScroll-TEST] revealCenter | before=${before} target=${target} viewportH=${viewportHeight} expectedTop=${expectedTop}`)
+			col2.revealRange(new vscode.Range(target, 0, target, 0), vscode.TextEditorRevealType.InCenter)
+			setTimeout(() => {
+				const after = col2.visibleRanges[0]?.start.line ?? -1
+				console.log(`[SyncScroll-TEST] revealCenter | before=${before} target=${target} | after=${after} | expected_top=${expectedTop} | offset_from_expected=${after - expectedTop}`)
+			}, 50)
+		}),
+		vscode.commands.registerCommand('syncScroll.testRevealAtTopSingleLine', () => {
+			const editors = vscode.window.visibleTextEditors
+				.filter(e => e.viewColumn !== undefined && e.document.uri.scheme !== 'output')
+				.sort((a, b) => (a.viewColumn ?? 0) - (b.viewColumn ?? 0))
+			if (editors.length < 2) { vscode.window.showWarningMessage('[SyncScroll-TEST] Need at least 2 split editors'); return }
+			const [col1, col2] = editors
+			const target = col1.visibleRanges[0]?.start.line ?? 0
+			const before = col2.visibleRanges[0]?.start.line ?? 0
+			console.log(`[SyncScroll-TEST] revealAtTopSingleLine | before=${before} target=${target}`)
+			col2.revealRange(new vscode.Range(target, 0, target, 0), vscode.TextEditorRevealType.AtTop)
+			setTimeout(() => {
+				const after = col2.visibleRanges[0]?.start.line ?? -1
+				console.log(`[SyncScroll-TEST] revealAtTopSingleLine | before=${before} target=${target} | after=${after} | offset_from_target=${after - target}`)
+			}, 50)
+		}),
+		// ── END DIAGNOSTIC TEST COMMANDS ─────────────────────────────────────────
 	)
 
 	AllStates.init(checkSplitPanels())
