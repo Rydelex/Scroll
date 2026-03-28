@@ -70,7 +70,40 @@ export function activate(context: vscode.ExtensionContext) {
 			AllStates.areVisible = checkSplitPanels(textEditors)
 			reset()
 		}),
-		vscode.window.onDidChangeTextEditorVisibleRanges(({ textEditor }) => {
+		vscode.commands.registerCommand('syncScroll.testMicroCorrection', async () => {
+				const editors = vscode.window.visibleTextEditors
+					.filter(e => e.viewColumn !== undefined && e.document.uri.scheme !== 'output')
+				if (editors.length < 2) {
+					vscode.window.showInformationMessage('[SyncScroll-TEST] Need at least 2 visible editors')
+					return
+				}
+				const col1 = editors[0]
+				const col2 = editors[1]
+
+				const col1Line = col1.visibleRanges[0]?.start.line ?? 0
+				const targetRange = new vscode.Range(col1Line, 0, col1Line, 0)
+				col2.revealRange(targetRange, vscode.TextEditorRevealType.AtTop)
+
+				await new Promise(resolve => setTimeout(resolve, 50))
+
+				const gap = col2.visibleRanges[0].start.line - col1.visibleRanges[0].start.line
+				console.log(`[SyncScroll-TEST] microCorrection | after revealRange | col1=${col1.visibleRanges[0].start.line} col2=${col2.visibleRanges[0].start.line} gap=${gap}`)
+
+				if (gap !== 0) {
+					await vscode.window.showTextDocument(col2.document, { viewColumn: col2.viewColumn, preserveFocus: false })
+					await vscode.commands.executeCommand('editorScroll', {
+						to: gap > 0 ? 'up' : 'down',
+						by: 'line',
+						value: Math.abs(gap)
+					})
+					await vscode.window.showTextDocument(col1.document, { viewColumn: col1.viewColumn, preserveFocus: false })
+				}
+
+				const finalCol2Line = col2.visibleRanges[0].start.line
+				console.log(`[SyncScroll-TEST] microCorrection | corrected=${finalCol2Line} | expected=${col1.visibleRanges[0].start.line}`)
+				vscode.window.showInformationMessage(`[SyncScroll-TEST] gap=${gap} | corrected=${finalCol2Line}`)
+			}),
+			vscode.window.onDidChangeTextEditorVisibleRanges(({ textEditor }) => {
 			if (!AllStates.areVisible || modeState.isOff() || textEditor.viewColumn === undefined || textEditor.document.uri.scheme === 'output') {
 				return
 			}
