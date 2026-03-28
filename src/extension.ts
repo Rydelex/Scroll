@@ -156,19 +156,24 @@ export function activate(context: vscode.ExtensionContext) {
 					const settleTargets = vscode.window.visibleTextEditors
 						.filter(e => e !== settleSource && e.viewColumn !== undefined && e.document.uri.scheme !== 'output')
 
+					console.log(`[SyncScroll-SETTLE] FIRED | source=col${settleSource.viewColumn} line=${settleSourceLine}`)
+
 					for (const target of settleTargets) {
 						if (!calibrationOffset.has(target)) continue
 						const userOffset = modeState.isOffsetMode() ? (offsetByEditors.get(target) ?? 0) : 0
 						const expectedLine = Math.max(0, settleSourceLine + userOffset)
 						const targetCurrentLine = target.visibleRanges[0]?.start.line ?? 0
 						const gap = targetCurrentLine - expectedLine
-						if (gap !== 0) {
+						const correcting = gap !== 0
+						console.log(`[SyncScroll-SETTLE] target=col${target.viewColumn} | actual=${targetCurrentLine} | expected=${expectedLine} | gap=${gap} | correcting=${correcting}`)
+						if (correcting) {
 							const compensated = Math.max(0, expectedLine + (calibrationOffset.get(target) ?? 0))
 							scrolledEditorsQueue.add(target)
 							target.revealRange(
 								new vscode.Range(compensated, 0, compensated, 0),
 								vscode.TextEditorRevealType.AtTop
 							)
+							console.log(`[SyncScroll-SETTLE] CORRECTED target=col${target.viewColumn} → line=${compensated}`)
 						}
 					}
 				}, 100)
