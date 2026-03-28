@@ -4,6 +4,7 @@ import { MODE, ModeState, AllStates } from './states'
 
 export function activate(context: vscode.ExtensionContext) {
 	let scrollingTask: NodeJS.Timeout
+	let settleTask: NodeJS.Timeout
 	let scrollingEditor: vscode.TextEditor | null
 	let correspondingLinesHighlight: vscode.TextEditorDecorationType | undefined
 	let previousState: MODE = MODE.OFF
@@ -20,6 +21,7 @@ export function activate(context: vscode.ExtensionContext) {
 		scrolledEditorsQueue.clear()
 		scrollingEditor = null
 		clearTimeout(scrollingTask)
+		clearTimeout(settleTask)
 		correspondingLinesHighlight?.dispose()
 	}
 
@@ -114,6 +116,7 @@ export function activate(context: vscode.ExtensionContext) {
 			if (scrollingTask) {
 				clearTimeout(scrollingTask)
 			}
+			clearTimeout(settleTask)
 			scrollingTask = setTimeout(() => {
 				const source = textEditor
 				const sourceCurrentLine = source.visibleRanges[0]?.start.line ?? 0
@@ -146,6 +149,29 @@ export function activate(context: vscode.ExtensionContext) {
 						)
 					}
 				}
+
+				settleTask = setTimeout(() => {
+					const settleSource = textEditor
+					const settleSourceLine = settleSource.visibleRanges[0]?.start.line ?? 0
+					const settleTargets = vscode.window.visibleTextEditors
+						.filter(e => e !== settleSource && e.viewColumn !== undefined && e.document.uri.scheme !== 'output')
+
+					for (const target of settleTargets) {
+						if (!calibrationOffset.has(target)) continue
+						const userOffset = modeState.isOffsetMode() ? (offsetByEditors.get(target) ?? 0) : 0
+						const expectedLine = Math.max(0, settleSourceLine + userOffset)
+						const targetCurrentLine = target.visibleRanges[0]?.start.line ?? 0
+						const gap = targetCurrentLine - expectedLine
+						if (gap !== 0) {
+							const compensated = Math.max(0, expectedLine + (calibrationOffset.get(target) ?? 0))
+							scrolledEditorsQueue.add(target)
+							target.revealRange(
+								new vscode.Range(compensated, 0, compensated, 0),
+								vscode.TextEditorRevealType.AtTop
+							)
+						}
+					}
+				}, 100)
 			}, 0)
 		}),
 		vscode.window.onDidChangeTextEditorSelection(({ selections, textEditor }) => {
