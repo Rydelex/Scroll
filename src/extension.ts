@@ -9,10 +9,14 @@ export function activate(context: vscode.ExtensionContext) {
 	let previousState: MODE = MODE.OFF
 	const scrolledEditorsQueue: Set<vscode.TextEditor> = new Set()
 	const offsetByEditors: Map<vscode.TextEditor, number> = new Map()
-	const lastKnownLine: Map<vscode.TextEditor, number> = new Map()
+	const calibrationOffset: Map<vscode.TextEditor, number> = new Map()
+	const isCalibrating: Set<vscode.TextEditor> = new Set()
+	const pendingCalibration: Map<vscode.TextEditor, number> = new Map()
 	const reset = () => {
 		offsetByEditors.clear()
-		lastKnownLine.clear()
+		calibrationOffset.clear()
+		isCalibrating.clear()
+		pendingCalibration.clear()
 		scrolledEditorsQueue.clear()
 		scrollingEditor = null
 		clearTimeout(scrollingTask)
@@ -70,41 +74,25 @@ export function activate(context: vscode.ExtensionContext) {
 			AllStates.areVisible = checkSplitPanels(textEditors)
 			reset()
 		}),
-		vscode.commands.registerCommand('syncScroll.testMicroCorrection', async () => {
-				const editors = vscode.window.visibleTextEditors
-					.filter(e => e.viewColumn !== undefined && e.document.uri.scheme !== 'output')
-				if (editors.length < 2) {
-					vscode.window.showInformationMessage('[SyncScroll-TEST] Need at least 2 visible editors')
-					return
-				}
-				const col1 = editors[0]
-				const col2 = editors[1]
-
-				const col1Line = col1.visibleRanges[0]?.start.line ?? 0
-				const targetRange = new vscode.Range(col1Line, 0, col1Line, 0)
-				col2.revealRange(targetRange, vscode.TextEditorRevealType.AtTop)
-
-				await new Promise(resolve => setTimeout(resolve, 50))
-
-				const gap = col2.visibleRanges[0].start.line - col1.visibleRanges[0].start.line
-				console.log(`[SyncScroll-TEST] microCorrection | after revealRange | col1=${col1.visibleRanges[0].start.line} col2=${col2.visibleRanges[0].start.line} gap=${gap}`)
-
-				if (gap !== 0) {
-					await vscode.window.showTextDocument(col2.document, { viewColumn: col2.viewColumn, preserveFocus: false })
-					await vscode.commands.executeCommand('editorScroll', {
-						to: gap > 0 ? 'up' : 'down',
-						by: 'line',
-						value: Math.abs(gap)
-					})
-					await vscode.window.showTextDocument(col1.document, { viewColumn: col1.viewColumn, preserveFocus: false })
-				}
-
-				const finalCol2Line = col2.visibleRanges[0].start.line
-				console.log(`[SyncScroll-TEST] microCorrection | corrected=${finalCol2Line} | expected=${col1.visibleRanges[0].start.line}`)
-				vscode.window.showInformationMessage(`[SyncScroll-TEST] gap=${gap} | corrected=${finalCol2Line}`)
-			}),
-			vscode.window.onDidChangeTextEditorVisibleRanges(({ textEditor }) => {
+		vscode.window.onDidChangeTextEditorVisibleRanges(({ textEditor }) => {
 			if (!AllStates.areVisible || modeState.isOff() || textEditor.viewColumn === undefined || textEditor.document.uri.scheme === 'output') {
+				return
+			}
+			if (isCalibrating.has(textEditor)) {
+				const requestedLine = pendingCalibration.get(textEditor)!
+				const actualLine = textEditor.visibleRanges[0]?.start.line ?? 0
+				const offset = requestedLine - actualLine
+				calibrationOffset.set(textEditor, offset)
+				isCalibrating.delete(textEditor)
+				pendingCalibration.delete(textEditor)
+				if (offset !== 0) {
+					const correctedLine = Math.max(0, requestedLine + offset)
+					scrolledEditorsQueue.add(textEditor)
+					textEditor.revealRange(
+						new vscode.Range(correctedLine, 0, correctedLine, 0),
+						vscode.TextEditorRevealType.AtTop
+					)
+				}
 				return
 			}
 			if (scrollingEditor !== textEditor) {
@@ -126,7 +114,7 @@ export function activate(context: vscode.ExtensionContext) {
 			if (scrollingTask) {
 				clearTimeout(scrollingTask)
 			}
-			scrollingTask = setTimeout(async () => {
+			scrollingTask = setTimeout(() => {
 				const source = textEditor
 				const sourceCurrentLine = source.visibleRanges[0]?.start.line ?? 0
 				const targets = vscode.window.visibleTextEditors
@@ -134,52 +122,29 @@ export function activate(context: vscode.ExtensionContext) {
 
 				if (targets.length === 0) return
 
-				if (modeState.isOffsetMode() && !lastKnownLine.has(source)) {
-					lastKnownLine.set(source, sourceCurrentLine)
-					return
-				}
+				for (const target of targets) {
+					const userOffset = modeState.isOffsetMode() ? (offsetByEditors.get(target) ?? 0) : 0
+					const requestedLine = Math.max(0, sourceCurrentLine + userOffset)
 
-				const sourceDelta = modeState.isOffsetMode()
-					? sourceCurrentLine - (lastKnownLine.get(source) ?? sourceCurrentLine)
-					: 0
-
-				if (modeState.isOffsetMode() && sourceDelta === 0) {
-					lastKnownLine.set(source, sourceCurrentLine)
-					return
-				}
-
-				const targetSnapshots = targets.map(t => ({
-					editor: t,
-					currentLine: t.visibleRanges[0]?.start.line ?? 0
-				}))
-
-				let didScroll = false
-				for (const { editor: target, currentLine: targetCurrentLine } of targetSnapshots) {
-					const delta = modeState.isNormalMode()
-						? sourceCurrentLine - targetCurrentLine
-						: sourceDelta
-
-					if (delta === 0) continue
-
-					scrolledEditorsQueue.add(target)
-					await vscode.window.showTextDocument(target.document, { viewColumn: target.viewColumn, preserveFocus: false })
-					vscode.commands.executeCommand('editorScroll', {
-						to: delta > 0 ? 'down' : 'up',
-						by: 'line',
-						value: Math.abs(delta)
-					})
-					if (modeState.isOffsetMode()) {
-						lastKnownLine.set(target, targetCurrentLine + delta)
+					if (!calibrationOffset.has(target)) {
+						if (isCalibrating.has(target)) {
+							// Rapid scroll during pending calibration: skip to avoid overwriting pendingCalibration
+							continue
+						}
+						isCalibrating.add(target)
+						pendingCalibration.set(target, requestedLine)
+						target.revealRange(
+							new vscode.Range(requestedLine, 0, requestedLine, 0),
+							vscode.TextEditorRevealType.AtTop
+						)
+					} else {
+						const compensated = Math.max(0, requestedLine + (calibrationOffset.get(target) ?? 0))
+						scrolledEditorsQueue.add(target)
+						target.revealRange(
+							new vscode.Range(compensated, 0, compensated, 0),
+							vscode.TextEditorRevealType.AtTop
+						)
 					}
-					didScroll = true
-				}
-
-				if (modeState.isOffsetMode()) {
-					lastKnownLine.set(source, sourceCurrentLine)
-				}
-
-				if (didScroll) {
-					await vscode.window.showTextDocument(source.document, { viewColumn: source.viewColumn, preserveFocus: false })
 				}
 			}, 16)
 		}),

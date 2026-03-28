@@ -35,9 +35,6 @@
 			},{
 				"command": "syncScroll.toggle",
 				"title": "Toggle Sync Scroll"
-			},{
-				"command": "syncScroll.testMicroCorrection",
-				"title": "[TEST] SyncScroll: micro correction flicker test"
 			}
 		],
 		"menus": {
