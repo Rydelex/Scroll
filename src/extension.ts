@@ -78,6 +78,9 @@ export function activate(context: vscode.ExtensionContext) {
 		}),
 		vscode.window.onDidChangeTextEditorVisibleRanges(({ textEditor }) => {
 			if (!AllStates.areVisible || modeState.isOff() || textEditor.viewColumn === undefined || textEditor.document.uri.scheme === 'output') {
+				if (modeState.isOff() && AllStates.areVisible && textEditor.viewColumn !== undefined && textEditor.document.uri.scheme !== 'output') {
+					console.log(`[SyncScroll-GUARD-OFF] BLOCKED col=${textEditor.viewColumn} — mode is OFF`)
+				}
 				return
 			}
 			if (isCalibrating.has(textEditor.viewColumn!)) {
@@ -99,6 +102,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 			if (scrollingEditor !== textEditor.viewColumn) {
 				if (scrolledEditorsQueue.has(textEditor.viewColumn!)) {
+					console.log(`[SyncScroll-GUARD-QUEUE] BLOCKED col=${textEditor.viewColumn} scrollingEditor=${scrollingEditor} queue=[${[...scrolledEditorsQueue].join(',')}]`)
 					scrolledEditorsQueue.delete(textEditor.viewColumn!)
 					return
 				}
@@ -159,7 +163,10 @@ export function activate(context: vscode.ExtensionContext) {
 					console.log(`[SyncScroll-SETTLE] FIRED | source=col${settleSource.viewColumn} line=${settleSourceLine}`)
 
 					for (const target of settleTargets) {
-						if (!calibrationOffset.has(target.viewColumn!)) continue
+						if (!calibrationOffset.has(target.viewColumn!)) {
+							console.log(`[SyncScroll-SETTLE-SKIP] target=col${target.viewColumn} hasCalib=false — skipped`)
+							continue
+						}
 						const userOffset = modeState.isOffsetMode() ? (offsetByEditors.get(target.viewColumn!) ?? 0) : 0
 						const expectedLine = Math.max(0, settleSourceLine + userOffset)
 						const targetCurrentLine = target.visibleRanges[0]?.start.line ?? 0
