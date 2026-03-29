@@ -109,6 +109,7 @@ export function activate(context: vscode.ExtensionContext) {
 					const settleTargets = vscode.window.visibleTextEditors
 						.filter(e => e !== settleSource && e.viewColumn !== undefined && e.document.uri.scheme !== 'output')
 
+					scrolledEditorsQueue.clear()
 					for (const target of settleTargets) {
 						const expectedLine = Math.max(0, settleSourceLine)
 						const targetCurrentLine = target.visibleRanges[0]?.start.line ?? 0
@@ -123,7 +124,6 @@ export function activate(context: vscode.ExtensionContext) {
 							)
 						}
 					}
-					scrolledEditorsQueue.clear()
 				}, 100)
 			}, 0)
 		}),
