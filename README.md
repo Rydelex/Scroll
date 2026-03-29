@@ -32,7 +32,16 @@ This is a maintained fork of [dqisme/vscode-sync-scroll](https://github.com/dqis
 3. **Alternatively**, open the Command Palette (`Ctrl+Shift+P`) and search for `Sync Scroll: Change Mode`
 4. Scroll in either panel — the other follows automatically
 
-> **Note:** The default mode is **OFF**. You need to select NORMAL after installing the extension and opening split panels.
+## Right-Click Commands
+
+When split panels are open, two commands are available via right-click in the editor:
+
+- **Jump to Next Panel Corresponding Position** — Moves your cursor to the same line in the next panel. Useful for quickly switching between sides while staying at the same position.
+- **Copy to All Corresponding Places** — First select text in one panel, then right-click and choose this command. It replaces the text at the same line position in the other panel(s) with your selection.
+
+These commands work independently of the sync mode (NORMAL or OFF).
+
+> **Note:** The default mode is **OFF**. To activate sync scrolling, either click the **Sync Scroll: OFF** indicator in the bottom status bar and select **NORMAL**, or open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and search for `Sync Scroll: Change Mode`.
 
 ![Sync scroll features](./feature.gif)
 
