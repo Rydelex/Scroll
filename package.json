@@ -1,12 +1,12 @@
 {
-	"name": "sync-scroll-revived",
-	"displayName": "Sync Scroll Revived",
-	"description": "A Visual Studio Code extension that makes sync scrolling editing easier.",
-	"version": "1.4",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/dqisme/vscode-sync-scroll.git"
-	},
+  "name": "sync-scroll-revived",
+  "displayName": "Sync Scroll (Revived)",
+  "publisher": "518d6c25-13eb-6d2c-b97b-4b76fd78c7f9",
+  "version": "1.4.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rydelex/Scroll"
+  },
 	"engines": {
 		"vscode": "^1.45.0"
 	},
