@@ -1,25 +1,40 @@
-# Sync Scroll - Visual Studio Code extension
+# Sync Scroll (Revived) — Visual Studio Code Extension
 
-A Visual Studio Code extension that makes sync scrolling editing easier.
+A Visual Studio Code extension that synchronizes scrolling between split panels.
+
+## What's New in 1.4.0
+
+This is a maintained fork of [dqisme/vscode-sync-scroll](https://github.com/dqisme/vscode-sync-scroll), with major fixes:
+
+- **Fixed scroll desynchronization** — The original extension had a persistent ~5 line offset between panels, reported since 2022. Root cause: VS Code's `revealRange` API adds internal padding. Fix: a post-scroll correction mechanism that measures and compensates the actual gap.
+- **Fixed activation bug** — Sync sometimes required clicking multiple panels before starting. Now activates immediately.
+- **Removed OFFSET mode** — This mode was non-functional and has been removed. Only **NORMAL** and **OFF** modes remain.
+- **Code cleanup** — Removed dead code, unused calibration system, and diagnostic artifacts.
 
 ## Features
 
-This extension supports sync scrolling between split panels in different modes:
+**Two sync modes**, selectable from the status bar or the Command Palette:
 
-- **NORMAL**: Sync scroll to the same line
-- **OFF**: Turn off sync scroll
+- **NORMAL** — Both panels scroll to the same line (synchronized)
+- **OFF** — Panels scroll independently (default)
 
-You can change the mode of Sync Scroll in the status bar below when VSCode opens split panels.
+**Additional tools** available via right-click in the editor:
 
-NOTE: the default mode is **OFF**, please select your desired mode after you firstly install it and open split panels.
+- **Jump to Next Panel Corresponding Position** — Quickly navigate to the same line in the other panel.
+- **Copy to All Corresponding Places** — Replace text at the corresponding position in other panels with your current selection.
+
+**Highlight** — When you place your cursor on one side, the corresponding line is highlighted on the other side.
+
+## Getting Started
+
+1. **Open a file in split view**: `Ctrl+\` (or `Cmd+\` on Mac) to split the current editor
+2. **Activate Sync Scroll**: Click the **Sync Scroll** indicator in the bottom status bar and select **NORMAL**
+3. **Alternatively**, open the Command Palette (`Ctrl+Shift+P`) and search for `Sync Scroll: Change Mode`
+4. Scroll in either panel — the other follows automatically
+
+> **Note:** The default mode is **OFF**. You need to select NORMAL after installing the extension and opening split panels.
 
 ![Sync scroll features](./feature.gif)
-
-It can help you highlight the corresponding selections when you focus the cursor on the one side.
-Additionally, there are two commands help your cross editing in the right-click menu in the content window when you open the split panels.
-
-- `Jump to Next Panel Corresponding Position` for navigating around the panels and in the corresponding position. It's very convenient to quick focus on the other side.
-- `Copy to All Corresponding Places` for replacing all the text at corresponding positions from the selections. For example, it's for the case that you want to use the selected text on the left side also on the right side.
 
 ![Right click menu on the content of split panels](./screenshot-right-click-menu.png)
 
@@ -98,3 +113,11 @@ Initial release of Sync Scroll with features:
 This extension is created by VSCode Extension Template (TypeScript) by [Yeoman](https://vscode.readthedocs.io/en/latest/extensions/yocode/).
 
 Basically, you can work with this extension source code as a normal typescript project.
+
+-----------------------------------------------------------------------------------------------------------
+## Credits & Contributing
+
+Fork of [dqisme/vscode-sync-scroll](https://github.com/dqisme/vscode-sync-scroll) — MIT License.
+Original author: [DQ](https://github.com/dqisme). Maintained by [Rydelex](https://github.com/Rydelex).
+
+Issues and pull requests welcome on the [GitHub repository](https://github.com/Rydelex/Scroll).
